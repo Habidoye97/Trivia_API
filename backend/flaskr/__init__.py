@@ -1,4 +1,6 @@
+import json
 import os
+from unicodedata import category
 from urllib import response
 from flask import Flask, request, abort, jsonify
 from flask_sqlalchemy import SQLAlchemy
@@ -74,15 +76,21 @@ def create_app(test_config=None):
 
     @app.route('/questions')
     def get_questions():
+        try: 
+            all_questions = Question.query.order_by(Question.id).all()
+            current_questions = paginate_question(request, all_questions)
 
-        all_questions = Question.query.order_by(Question.id).all()
-        selected_questions = paginate_question(request, all_questions)
+            if len(current_questions) == 0:
+                abort(404)
 
-        return jsonify({
-            'success':True,
-            'current_question': selected_questions,
-            'total_question': len(Question.query.all())
-        })
+            return jsonify({
+                'success':True,
+                'questions': current_questions,
+                'total_question': len(Question.query.all())
+                
+            })
+        except:
+            abort(404)
     """
     @TODO:
     Create an endpoint to DELETE question using a question ID.
@@ -90,7 +98,26 @@ def create_app(test_config=None):
     TEST: When you click the trash icon next to a question, the question will be removed.
     This removal will persist in the database and when you refresh the page.
     """
+    @app.route('/questions/<int:question_id>', methods=['DELETE'])
+    def delete_question(question_id):
+        try:
+            question = Question.query.filter(Question.id == question_id).one_or_none()
 
+            if question is None:
+                abort(404)
+
+            question.delete()
+            all_question = Question.query.order_by(Question.id).all()
+            current_question = paginate_question(request, all_question)
+
+            return jsonify({
+                'success': True,
+                'deleted': question_id,
+                'total_question': len(Question.query.all()),
+                'questions': current_question
+            })
+        except:
+            abort(422)
     """
     @TODO:
     Create an endpoint to POST a new question,
@@ -101,7 +128,29 @@ def create_app(test_config=None):
     the form will clear and the question will appear at the end of the last page
     of the questions list in the "List" tab.
     """
+    @app.route('/questions', methods=['POST'])
+    def create_new_questions():
+        body = request.get_json()
 
+        new_question = body.get('question', None)
+        new_answer = body.get('answer', None)
+        category = body.get('category', None)
+        difficulty = body.get('difficulty', None)
+
+        try:
+            question = Question(question='new_question', answer='new_answer', category=category, difficulty=difficulty)
+            question.insert()
+
+            all_question = Question.query.order_by(Question.id).all()
+            current_question = paginate_question(request, all_question)
+            return ({
+                    'success': True,
+                    'created': question.id,
+                    'questions': current_question,
+                    'total_question': len(Question.query.all())
+            })
+        except:
+            abort(422)
     """
     @TODO:
     Create a POST endpoint to get questions based on a search term.
@@ -112,7 +161,7 @@ def create_app(test_config=None):
     only question that include that string within their question.
     Try using the word "title" to start.
     """
-
+    
     """
     @TODO:
     Create a GET endpoint to get questions based on category.
@@ -139,6 +188,20 @@ def create_app(test_config=None):
     Create error handlers for all expected errors
     including 404 and 422.
     """
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify({
+            'success': False,
+            'error': 404,
+            'message': 'Resource not Found'
+        }), 404
 
+    @app.errorhandler(422)
+    def not_found(error):
+        return jsonify({
+            'success': False,
+            'error': 422,
+            'message': 'Unprocessable Entity'
+        }), 422
     return app
 
