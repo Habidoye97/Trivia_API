@@ -1,4 +1,6 @@
+
 import json
+
 import os
 from unicodedata import category
 from urllib import response
@@ -7,7 +9,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import random
 
-from models import setup_db, Question, Category
+from models import setup_db, Question, Category, db
 
 QUESTIONS_PER_PAGE = 10
 
@@ -41,14 +43,16 @@ def create_app(test_config=None):
     @app.route('/categories')
     def get_categories():
         categories = Category.query.order_by(Category.id).all()
-        formatted_categories = [category.format() for category in categories]
+        categoryObject = {}
+        for category in categories:
+            categoryObject[category.id] = category.type
         
         if categories is None:
             abort(404)
 
         return jsonify ({
             'success': True,
-            'categories': formatted_categories,
+            'categories': categoryObject,
             'total_category': len(Category.query.all())
         })
 
@@ -77,8 +81,14 @@ def create_app(test_config=None):
     @app.route('/questions')
     def get_questions():
         try: 
+            # get all questions
             all_questions = Question.query.order_by(Question.id).all()
             current_questions = paginate_question(request, all_questions)
+            # get all categories
+            categories = Category.query.order_by(Category.id).all()
+            categoriesDict = {}
+            for category in categories:
+                categoriesDict[category.id] = category.type
 
             if len(current_questions) == 0:
                 abort(404)
@@ -86,8 +96,8 @@ def create_app(test_config=None):
             return jsonify({
                 'success':True,
                 'questions': current_questions,
-                'total_question': len(Question.query.all())
-                
+                'total_questions': len(Question.query.all()),
+                'categories': categoriesDict
             })
         except:
             abort(404)
@@ -138,7 +148,7 @@ def create_app(test_config=None):
         difficulty = body.get('difficulty', None)
 
         try:
-            question = Question(question='new_question', answer='new_answer', category=category, difficulty=difficulty)
+            question = Question(question=new_question, answer=new_answer, category=category, difficulty=difficulty)
             question.insert()
 
             all_question = Question.query.order_by(Question.id).all()
@@ -150,7 +160,7 @@ def create_app(test_config=None):
                     'total_question': len(Question.query.all())
             })
         except:
-            abort(422)
+            abort(405)
     """
     @TODO:
     Create a POST endpoint to get questions based on a search term.
@@ -161,7 +171,32 @@ def create_app(test_config=None):
     only question that include that string within their question.
     Try using the word "title" to start.
     """
-    
+    @app.route('/questions/search', methods=['POST'])
+    def search_question():
+        body = request.get_json()
+
+        word = body.get('searchTerm', None)
+        try: 
+            search_list = []
+            all_question = Question.query.all()
+            for question in all_question:
+                if (question.question.lower().find(word.lower()) != -1):
+                    search_list.append(question.format())
+
+            # current_question = paginate_question(request, search_list)
+            if search_list is None:
+                abort(404)
+            
+            
+            return jsonify ({
+                'success': True,
+                'questions': search_list,
+                'total_questions': len(search_list),
+                'current_category': 0
+            })
+        except:
+            abort(404)
+
     """
     @TODO:
     Create a GET endpoint to get questions based on category.
@@ -170,6 +205,19 @@ def create_app(test_config=None):
     categories in the left column will cause only questions of that
     category to be shown.
     """
+    @app.route('/categories/<int:category_id>/questions')
+    def get_questions_based_on_category(category_id):
+
+        questions_in_category = Question.query.filter_by(category = category_id).all()
+        category = Category.query.filter(Category.id == category_id).one_or_none()
+
+        list_questions = [questions.format() for questions in questions_in_category]
+        return jsonify({
+            'success': True,
+            'questions': list_questions,
+            'current_category': category.type,
+            'total_questions': len(list_questions)
+        })
 
     """
     @TODO:
@@ -182,7 +230,39 @@ def create_app(test_config=None):
     one question at a time is displayed, the user is allowed to answer
     and shown whether they were correct or not.
     """
+    @app.route('/quizzes', methods=['POST'])
+    def play_quiz():
+        body = request.get_json()
+        question_category = body.get('quiz_category')
+        previous_question = body.get('previous_questions')
 
+        try:
+            if (question_category['id'] == 0):
+                questionsQuery = Question.query.all()
+            else:
+                questionsQuery = Question.query.filter_by(
+                    category=question_category['id']).all()
+
+            randomIndex = random.randint(0, len(questionsQuery)-1)
+            nextQuestion = questionsQuery[randomIndex]
+
+            stillQuestions = True
+            while nextQuestion.id not in previous_question:
+                nextQuestion = questionsQuery[randomIndex]
+                return jsonify({
+                    'success': True,
+                    'question': {
+                        "answer": nextQuestion.answer,
+                        "category": nextQuestion.category,
+                        "difficulty": nextQuestion.difficulty,
+                        "id": nextQuestion.id,
+                        "question": nextQuestion.question
+                    },
+                    'previousQuestion': previous_question
+                })
+
+        except:
+            abort(404)
     """
     @TODO:
     Create error handlers for all expected errors
@@ -203,5 +283,13 @@ def create_app(test_config=None):
             'error': 422,
             'message': 'Unprocessable Entity'
         }), 422
+
+    @app.errorhandler(405)
+    def method_not_allowed(error):
+        return jsonify({
+            'success': False,
+            'error':405,
+            'message': 'method not allowed'
+        }), 405
     return app
 
