@@ -42,20 +42,22 @@ def create_app(test_config=None):
     """
     @app.route('/categories')
     def get_categories():
-        categories = Category.query.order_by(Category.id).all()
-        categoryObject = {}
-        for category in categories:
-            categoryObject[category.id] = category.type
-        
-        if categories is None:
-            abort(404)
+        try:
+            categories = Category.query.order_by(Category.id).all()
+            categoryObject = {}
+            for category in categories:
+                categoryObject[category.id] = category.type
+            
+            if categories is None:
+                abort(404)
 
-        return jsonify ({
-            'success': True,
-            'categories': categoryObject,
-            'total_category': len(Category.query.all())
-        })
-
+            return jsonify ({
+                'success': True,
+                'categories': categoryObject,
+                'total_category': len(Category.query.all())
+            })
+        except:
+            abort(422)
     """
     @TODO:
     Create an endpoint to handle GET requests for questions,
@@ -186,16 +188,15 @@ def create_app(test_config=None):
             # current_question = paginate_question(request, search_list)
             if search_list is None:
                 abort(404)
-            
-            
+             
             return jsonify ({
                 'success': True,
                 'questions': search_list,
                 'total_questions': len(search_list),
-                'current_category': 0
+                
             })
         except:
-            abort(404)
+            abort(422)
 
     """
     @TODO:
@@ -208,16 +209,22 @@ def create_app(test_config=None):
     @app.route('/categories/<int:category_id>/questions')
     def get_questions_based_on_category(category_id):
 
-        questions_in_category = Question.query.filter_by(category = category_id).all()
-        category = Category.query.filter(Category.id == category_id).one_or_none()
+        try:
+            questions_in_category = Question.query.filter_by(category = category_id).all()
+            category = Category.query.filter(Category.id == category_id).one_or_none()
 
-        list_questions = [questions.format() for questions in questions_in_category]
-        return jsonify({
-            'success': True,
-            'questions': list_questions,
-            'current_category': category.type,
-            'total_questions': len(list_questions)
-        })
+            if questions_in_category is None and category is None:
+                abort(404)
+
+            list_questions = [questions.format() for questions in questions_in_category]
+            return jsonify({
+                'success': True,
+                'questions': list_questions,
+                'current_category': category.type,
+                'total_questions': len(list_questions)
+            })
+        except:
+            abort(422)
 
     """
     @TODO:
@@ -246,7 +253,7 @@ def create_app(test_config=None):
             randomIndex = random.randint(0, len(questionsQuery)-1)
             nextQuestion = questionsQuery[randomIndex]
 
-            stillQuestions = True
+            
             while nextQuestion.id not in previous_question:
                 nextQuestion = questionsQuery[randomIndex]
                 return jsonify({
