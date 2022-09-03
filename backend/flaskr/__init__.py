@@ -149,6 +149,9 @@ def create_app(test_config=None):
         category = body.get('category', None)
         difficulty = body.get('difficulty', None)
 
+        if new_question is None and new_answer is None and category is None and difficulty is None:
+            abort(400)
+
         try:
             question = Question(question=new_question, answer=new_answer, category=category, difficulty=difficulty)
             question.insert()
@@ -240,22 +243,21 @@ def create_app(test_config=None):
     @app.route('/quizzes', methods=['POST'])
     def play_quiz():
         body = request.get_json()
-        question_category = body.get('quiz_category')
-        previous_question = body.get('previous_questions')
+        question_category = body.get('quiz_category', None)
+        previous_question = body.get('previous_questions', None)
+
+        if question_category is None and previous_question is None:
+            abort(400)
 
         try:
             if (question_category['id'] == 0):
-                questionsQuery = Question.query.all()
+                questions = Question.query.filter(Question.id not in previous_question).all()
             else:
-                questionsQuery = Question.query.filter_by(
-                    category=question_category['id']).all()
+                questions = Question.query.filter_by(
+                    category=question_category['id']).filter(Question.id not in previous_question).all()
 
-            randomIndex = random.randint(0, len(questionsQuery)-1)
-            nextQuestion = questionsQuery[randomIndex]
-
-            
-            while nextQuestion.id not in previous_question:
-                nextQuestion = questionsQuery[randomIndex]
+            if len(questions) > 0:
+                nextQuestion = questions[random.randrange(0, len(questions)-1)]
                 return jsonify({
                     'success': True,
                     'question': {
@@ -297,6 +299,13 @@ def create_app(test_config=None):
             'success': False,
             'error':405,
             'message': 'method not allowed'
+        }), 405
+    @app.errorhandler(400)
+    def method_not_allowed(error):
+        return jsonify({
+            'success': False,
+            'error':400,
+            'message': 'Bad Request'
         }), 405
     return app
 
