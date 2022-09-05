@@ -13,17 +13,19 @@ from models import setup_db, Question, Category, db
 
 QUESTIONS_PER_PAGE = 10
 
+
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__)
     setup_db(app)
 
     """
-    @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
+    Set up CORS. Allow '*' for origins. Delete the sample route
+    after completing the TODOs
     """
     CORS(app)
     """
-    @TODO: Use the after_request decorator to set Access-Control-Allow
+    DONE: Use the after_request decorator to set Access-Control-Allow
     """
     @app.after_request
     def after_request(response):
@@ -36,7 +38,7 @@ def create_app(test_config=None):
         )
         return response
     """
-    @TODO:
+    DONE:
     Create an endpoint to handle GET requests
     for all available categories.
     """
@@ -47,11 +49,9 @@ def create_app(test_config=None):
             categoryObject = {}
             for category in categories:
                 categoryObject[category.id] = category.type
-            
             if categories is None:
                 abort(404)
-
-            return jsonify ({
+            return jsonify({
                 'success': True,
                 'categories': categoryObject,
                 'total_category': len(Category.query.all())
@@ -59,7 +59,7 @@ def create_app(test_config=None):
         except:
             abort(422)
     """
-    @TODO:
+    DONE
     Create an endpoint to handle GET requests for questions,
     including pagination (every 10 questions).
     This endpoint should return a list of questions,
@@ -67,7 +67,8 @@ def create_app(test_config=None):
 
     TEST: At this point, when you start the application
     you should see questions and categories generated,
-    ten questions per page and pagination at the bottom of the screen for three pages.
+    ten questions per page and pagination at the bottom of the
+    screen for three pages.
     Clicking on the page numbers should update the questions.
     """
     def paginate_question(request, selection):
@@ -79,10 +80,9 @@ def create_app(test_config=None):
         current_questions = questions[start:end]
         return current_questions
 
-
     @app.route('/questions')
     def get_questions():
-        try: 
+        try:
             # get all questions
             all_questions = Question.query.order_by(Question.id).all()
             current_questions = paginate_question(request, all_questions)
@@ -96,7 +96,7 @@ def create_app(test_config=None):
                 abort(404)
 
             return jsonify({
-                'success':True,
+                'success': True,
                 'questions': current_questions,
                 'total_questions': len(Question.query.all()),
                 'categories': categoriesDict
@@ -104,16 +104,18 @@ def create_app(test_config=None):
         except:
             abort(404)
     """
-    @TODO:
+    DONE:
     Create an endpoint to DELETE question using a question ID.
 
-    TEST: When you click the trash icon next to a question, the question will be removed.
+    TEST: When you click the trash icon next to a question,
+    the question will be removed.
     This removal will persist in the database and when you refresh the page.
     """
     @app.route('/questions/<int:question_id>', methods=['DELETE'])
     def delete_question(question_id):
         try:
-            question = Question.query.filter(Question.id == question_id).one_or_none()
+            question = Question.query.filter(Question.id 
+                == question_id).one_or_none()
 
             if question is None:
                 abort(404)
@@ -131,7 +133,7 @@ def create_app(test_config=None):
         except:
             abort(422)
     """
-    @TODO:
+    DONE:
     Create an endpoint to POST a new question,
     which will require the question and answer text,
     category, and difficulty score.
@@ -159,15 +161,15 @@ def create_app(test_config=None):
             all_question = Question.query.order_by(Question.id).all()
             current_question = paginate_question(request, all_question)
             return ({
-                    'success': True,
-                    'created': question.id,
-                    'questions': current_question,
-                    'total_question': len(Question.query.all())
+                'success': True,
+                'created': question.id,
+                'questions': current_question,
+                'total_question': len(Question.query.all())
             })
         except:
             abort(405)
     """
-    @TODO:
+    DONE:
     Create a POST endpoint to get questions based on a search term.
     It should return any questions for whom the search term
     is a substring of the question.
@@ -191,8 +193,7 @@ def create_app(test_config=None):
             # current_question = paginate_question(request, search_list)
             if search_list is None:
                 abort(404)
-             
-            return jsonify ({
+            return jsonify({
                 'success': True,
                 'questions': search_list,
                 'total_questions': len(search_list),
@@ -202,7 +203,7 @@ def create_app(test_config=None):
             abort(422)
 
     """
-    @TODO:
+    DONE:
     Create a GET endpoint to get questions based on category.
 
     TEST: In the "List" tab / main screen, clicking on one of the
@@ -230,7 +231,7 @@ def create_app(test_config=None):
             abort(422)
 
     """
-    @TODO:
+    DONE:
     Create a POST endpoint to get questions to play the quiz.
     This endpoint should take category and previous question parameters
     and return a random questions within the given category,
@@ -245,19 +246,22 @@ def create_app(test_config=None):
         body = request.get_json()
         question_category = body.get('quiz_category', None)
         previous_question = body.get('previous_questions', None)
-
         if question_category is None and previous_question is None:
             abort(400)
-
         try:
             if (question_category['id'] == 0):
-                questions = Question.query.filter(Question.id not in previous_question).all()
+                questions = Question.query.filter(Question.id.not_in(previous_question)).all()
             else:
                 questions = Question.query.filter_by(
-                    category=question_category['id']).filter(Question.id not in previous_question).all()
+                    category=question_category['id']).filter(Question.id.not_in(previous_question)).all()
+            
+            for question in questions:
+                if question.id in previous_question:
+                    questions.remove(question)
 
             if len(questions) > 0:
-                nextQuestion = questions[random.randrange(0, len(questions)-1)]
+                nextQuestion = questions[random.randint(0, len(questions)-1)]
+                
                 return jsonify({
                     'success': True,
                     'question': {
@@ -267,13 +271,13 @@ def create_app(test_config=None):
                         "id": nextQuestion.id,
                         "question": nextQuestion.question
                     },
-                    'previousQuestion': previous_question
                 })
-
+            else:
+                abort(404)
         except:
             abort(404)
     """
-    @TODO:
+    DONE:
     Create error handlers for all expected errors
     including 404 and 422.
     """
@@ -300,12 +304,21 @@ def create_app(test_config=None):
             'error':405,
             'message': 'method not allowed'
         }), 405
+        
     @app.errorhandler(400)
     def method_not_allowed(error):
         return jsonify({
             'success': False,
             'error':400,
             'message': 'Bad Request'
-        }), 405
-    return app
+        }), 400
+    
+    @app.errorhandler(500)
+    def server_error(error):
+        return jsonify({
+            'success': False,
+            'error': 500,
+            'message': 'Internal Server Error'
+        }), 500
 
+    return app
