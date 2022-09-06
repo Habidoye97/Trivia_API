@@ -274,7 +274,9 @@ def create_app(test_config=None):
                     },
                 })
             else:
-                abort(404)
+                return jsonify({
+                   'success': True,
+                })
         except:
             abort(404)
     """
