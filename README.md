@@ -114,7 +114,7 @@ General:
 
 Sample ```curl -X DELETE http://127.0.0.1:5000/questions```
        ```curl -X DELETE http://127.0.0.1:5000/questions?page=1``` 
-
+```
 {
   "categories": {
     "1": "Science",
@@ -199,6 +199,7 @@ Sample ```curl -X DELETE http://127.0.0.1:5000/questions```
   "success": true,
   "total_questions": 20
 }
+```
 
 **DELETE /questions/{id}**
 
